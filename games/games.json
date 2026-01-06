@@ -1,6 +1,7 @@
 [
-  { "title": "funky roguelike", "author": "aiszin", "path": "/games/funky-roguelike/index.html/" }
+  {
+    "title": "funky roguelike",
+    "author": "aiszin",
+    "path": "/games/funky-roguelike/index.html/"
+  }
 ]
-
-
-
