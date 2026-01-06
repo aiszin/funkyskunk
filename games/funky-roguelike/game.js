@@ -88,7 +88,7 @@
       name: "Archer",
       hp: 14,
       atk: 4,
-      range: 5,
+      range: 10,
       move: { type: "relativeCardinal", steps: [2] }, // 2 tiles only (relative to facing)
       // Attack: line shot
       attackTiles: (px, py, dir, state) => {
