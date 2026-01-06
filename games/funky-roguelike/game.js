@@ -48,6 +48,33 @@
     return "•";
   }
 
+  function bresenhamLine(x0, y0, x1, y1) {
+  // Returns all grid cells from start -> end inclusive
+  const cells = [];
+  let dx = Math.abs(x1 - x0), sx = x0 < x1 ? 1 : -1;
+  let dy = -Math.abs(y1 - y0), sy = y0 < y1 ? 1 : -1;
+  let err = dx + dy;
+
+  while (true) {
+    cells.push([x0, y0]);
+    if (x0 === x1 && y0 === y1) break;
+    const e2 = 2 * err;
+    if (e2 >= dy) { err += dy; x0 += sx; }
+    if (e2 <= dx) { err += dx; y0 += sy; }
+  }
+  return cells;
+}
+
+function hasLineOfSight(ax, ay, bx, by) {
+  // Blocked by walls. We ignore the starting cell.
+  const line = bresenhamLine(ax, ay, bx, by);
+  for (let i = 1; i < line.length; i++) {
+    const [x, y] = line[i];
+    if (isWall(x, y)) return false;
+  }
+  return true;
+}
+
   // ====== Classes ======
   // Movement rules:
   // - vectors: allowed direction set ("cardinal" or "eight") and steps (like [1] or [1,2])
@@ -141,10 +168,11 @@
     return cardinal;
   }
 
-  // ====== State ======
-  let state;
-  let hover = { tx: -1, ty: -1, kind: "none" }; // kind: none|move|attack
-  let previewTiles = [];
+// ====== State ======
+let state;
+let hover = { tx: -1, ty: -1, kind: "none" };
+let previewTiles = [];
+let projectile = null; 
 
   function newGame() {
     state = {
@@ -333,25 +361,59 @@
   }
 
   function tryAttackAt(tx, ty) {
+  if (state.gameOver) return;
+  if (!state.picked) return log("Pick a class first.");
+
+  const px = state.player.x;
+  const py = state.player.y;
+
+  // Archer: click ANY tile (within 10), blocked by walls
+  if (state.player.clsKey === "archer") {
+    const dist = manhattan(px, py, tx, ty);
+    if (dist > state.player.range) return log("Out of range.");
+    if (!hasLineOfSight(px, py, tx, ty)) return log("No line of sight.");
+
+    // tiny arrow animation
+    projectile = { from: [px, py], to: [tx, ty], t0: performance.now(), dur: 140 };
+
     const e = enemyAt(tx, ty);
-    if (!e) return;
-
-    const dx = tx - state.player.x;
-    const dy = ty - state.player.y;
-    const dir = normalizeDir(dx, dy);
-
-    // If archer, prefer cardinal aiming (no diagonal shots unless you're exactly diagonal)
-    // (you can remove this if you want diagonal arrow shots)
-    if (state.player.clsKey === "archer") {
-      // force to cardinal based on larger component
-      if (Math.abs(dx) >= Math.abs(dy)) attackInDirection([sgn(dx), 0]);
-      else attackInDirection([0, sgn(dy)]);
-      return;
+    if (e) {
+      e.hp -= state.player.atk;
+      log(`You shoot and hit for ${state.player.atk}.`);
+      if (e.hp <= 0) {
+        state.enemies = state.enemies.filter(en => en.hp > 0);
+        log("Enemy down.");
+      }
+      if (state.enemies.length === 0) {
+        log("YOU WIN (for now). Add floors next.");
+        state.gameOver = true;
+      }
+    } else {
+      log("You shoot and hit nothing.");
     }
 
-    // For others, allow diagonal aiming
-    attackInDirection(dir);
+    endPlayerTurn();
+    return;
   }
+
+  // Others: must click an enemy, then attack in that direction
+const e = enemyAt(tx, ty);
+
+// Archer: click anywhere = shoot (unless the tile is a legal move target)
+if (state.player.clsKey === "archer") {
+  // if tile is a legal move destination, move; otherwise shoot
+  const legal = computeLegalMoves();
+  const isMove = legal.some(m => m.x === tx && m.y === ty);
+
+  if (isMove) tryMoveTo(tx, ty);
+  else tryAttackAt(tx, ty);
+  return;
+}
+
+// Non-archer normal behavior
+if (e) tryAttackAt(tx, ty);
+else tryMoveTo(tx, ty);
+
 
   // ====== Enemy Turn ======
   function enemyTurn() {
@@ -471,6 +533,31 @@
       ctx.fillStyle = "rgba(0,255,153,0.14)";
       ctx.fillRect(x * TILE, y * TILE, TILE, TILE);
     }
+
+    // projectile (archer shot)
+if (projectile) {
+  const t = (performance.now() - projectile.t0) / projectile.dur;
+  if (t >= 1) {
+    projectile = null;
+  } else {
+    const [fx, fy] = projectile.from;
+    const [tx, ty] = projectile.to;
+    const k = Math.max(0, Math.min(1, t));
+
+    const sx = (fx + 0.5) * TILE;
+    const sy = (fy + 0.5) * TILE;
+    const ex = (fx + (tx - fx) * k + 0.5) * TILE;
+    const ey = (fy + (ty - fy) * k + 0.5) * TILE;
+
+    ctx.strokeStyle = "rgba(0,255,153,0.9)";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(sx, sy);
+    ctx.lineTo(ex, ey);
+    ctx.stroke();
+    ctx.lineWidth = 1;
+  }
+}
 
     // enemies
     for (const e of state.enemies) {
