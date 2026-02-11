@@ -77,3 +77,37 @@ h1{
   letter-spacing:1px;
   opacity:.9;
 }
+
+.about-btn{
+  position: fixed;
+  bottom: 14px;
+  right: 14px;
+  z-index: 50;
+
+  font-size: 12px;
+  letter-spacing: 1px;
+  text-decoration: none;
+
+  color: var(--mut);
+  opacity: .6;
+
+  padding: 6px 10px;
+  border-radius: 999px;
+
+  border: 1px solid var(--line);
+  background: rgba(255,255,255,0.03);
+  backdrop-filter: blur(6px);
+
+  transition: opacity .15s ease, border-color .15s ease, transform .08s ease;
+}
+.about-btn:hover{
+  opacity: .95;
+  border-color: rgba(0,255,153,0.35); 
+  transform: translateY(-1px);
+}
+.about-btn:active{
+  transform: translateY(1px);
+}
+
+.acc{ color: var(--acc); }
+.mut{ color: var(--mut); }
